@@ -1,3 +1,9 @@
+variable "cluster_id" {
+  type = string
+  description = "cluster id of aks"
+
+  default = ""
+}
 variable "cloud_provider" {
   type        = string
   description = "The name of the cloud provider."
@@ -50,4 +56,14 @@ variable "delay_command" {
   type        = string
   description = "The command for delay, the cammand depend on the env the terraform runed on."
   default     = "sleep 60" #"sleep 60" for linux, for windows is "powershell -Command Start-Sleep -Seconds 60"
+}
+
+variable "cluster_name" {
+  type        = string
+  description = "AKS name in Azure"
+}
+
+variable "resource_group_name" {
+  type        = string
+  description = "RG name in Azure"
 }

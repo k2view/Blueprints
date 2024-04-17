@@ -89,6 +89,7 @@ variable "deploy_grafana_agent" {
   type        = bool
   description = "A boolean flag to control whether to install grafana agent"
   default     = false
+}
 
 variable "private_cluster_enabled" {
   type        = bool

@@ -16,6 +16,14 @@ module "AKS_private_network" {
   tags                          = var.tags
 }
 
+data "azuread_client_config" "current" {}
+
+resource "azuread_group" "aks_administrators" {
+  display_name     = "aks_administrators"
+  owners           = [data.azuread_client_config.current.object_id]
+  security_enabled = true
+}
+
 resource "azurerm_kubernetes_cluster" "aks_cluster" {
   name                    = var.cluster_name
   sku_tier                = "Standard"
@@ -46,6 +54,14 @@ resource "azurerm_kubernetes_cluster" "aks_cluster" {
     network_plugin    = "kubenet" # CNI
   }
 
+  azure_active_directory_role_based_access_control {
+    managed = true
+    azure_rbac_enabled = true
+    admin_group_object_ids = [azuread_group.aks_administrators.id]
+  }
+
+  depends_on = [ azuread_group.aks_administrators ]
+
   tags = var.tags
 }
 
@@ -67,35 +83,19 @@ module "create_acr" {
   principal_id        = azurerm_kubernetes_cluster.aks_cluster.kubelet_identity.0.object_id
 }
 
-provider "kubernetes" {
-  host                   = azurerm_kubernetes_cluster.aks_cluster.kube_config.0.host
-  client_certificate     = base64decode(azurerm_kubernetes_cluster.aks_cluster.kube_config.0.client_certificate)
-  client_key             = base64decode(azurerm_kubernetes_cluster.aks_cluster.kube_config.0.client_key)
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks_cluster.kube_config.0.cluster_ca_certificate)
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = azurerm_kubernetes_cluster.aks_cluster.kube_config.0.host
-    client_certificate     = base64decode(azurerm_kubernetes_cluster.aks_cluster.kube_config.0.client_certificate)
-    client_key             = base64decode(azurerm_kubernetes_cluster.aks_cluster.kube_config.0.client_key)
-    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks_cluster.kube_config.0.cluster_ca_certificate)
-  }
-}
-
 # Deploy Grafana agent
-resource "helm_release" "grafana_agent" {
-  count = var.deploy_grafana_agent ? 1 : 0
-  name  = "grafana-agent"
-  chart = "../../helm/charts/grafana-agent/k8s-monitoring"
+# resource "helm_release" "grafana_agent" {
+#   count = var.deploy_grafana_agent ? 1 : 0
+#   name  = "grafana-agent"
+#   chart = "../../helm/charts/grafana-agent/k8s-monitoring"
 
-  depends_on       = [ azurerm_kubernetes_cluster.aks_cluster ]
-  namespace        = "grafana-agent"
-  create_namespace = true
-  values = [
-    "${file("grafana-agent-values.yaml")}"
-  ]
-}
+#   depends_on       = [ azurerm_kubernetes_cluster.aks_cluster ]
+#   namespace        = "grafana-agent"
+#   create_namespace = true
+#   values = [
+#     "${file("grafana-agent-values.yaml")}"
+#   ]
+# }
 
 module "AKS_ingress" {
   depends_on              = [ azurerm_kubernetes_cluster.aks_cluster ]
@@ -105,24 +105,27 @@ module "AKS_ingress" {
   delay_command           = var.delay_command
   keyb64String            = base64encode(file(var.keyPath))
   certb64String           = base64encode(file(var.certPath))
-}
-
-module "AKS_k2v_agent" {
-  depends_on              = [ azurerm_kubernetes_cluster.aks_cluster ]
-  count                   = var.mailbox_id != "" ? 1 : 0
-  source                  = "../modules/k2v_agent"
-  mailbox_id              = var.mailbox_id
-  mailbox_url             = var.mailbox_url
-  region                  = var.location
-  cloud_provider          = "azure"
-}
-
-module "DNS_zone" {
-  count                   = var.create_dns ? 1 : 0
-  depends_on              = [ module.AKS_ingress ]
-  source                  = "../modules/dns_zone"
+  cluster_name            = var.cluster_name
   resource_group_name     = var.resource_group_name
-  domain                  = var.domain
-  record_ip               = module.AKS_ingress.nginx_lb_ip
-  tags                    = var.tags
+  cluster_id              = azurerm_kubernetes_cluster.aks_cluster.id
 }
+
+# module "AKS_k2v_agent" {
+#   depends_on              = [ azurerm_kubernetes_cluster.aks_cluster ]
+#   count                   = var.mailbox_id != "" ? 1 : 0
+#   source                  = "../modules/k2v_agent"
+#   mailbox_id              = var.mailbox_id
+#   mailbox_url             = var.mailbox_url
+#   region                  = var.location
+#   cloud_provider          = "azure"
+# }
+
+# module "DNS_zone" {
+#   count                   = var.create_dns ? 1 : 0
+#   depends_on              = [ module.AKS_ingress ]
+#   source                  = "../modules/dns_zone"
+#   resource_group_name     = var.resource_group_name
+#   domain                  = var.domain
+#   record_ip               = module.AKS_ingress.nginx_lb_ip
+#   tags                    = var.tags
+# }

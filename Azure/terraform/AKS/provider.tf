@@ -8,14 +8,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "3.97.0"
     }
-    helm={
-      source = "Hashicorp/helm"
-      version = "2.13.0" #"2.9.0"
-    }
-    kubernetes={
-      source = "Hashicorp/kubernetes"
-      version = "2.27.0" #"2.19.0"
-    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
@@ -28,9 +20,28 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.2"
     }
+
+    azureakscommand = {
+      source = "jkroepke/azureakscommand"
+      version = "1.2.0"
+    }
+
+    archive = {
+      source = "hashicorp/archive"
+      version = "2.4.2"
+    }
+
+    azuread = {
+      source = "hashicorp/azuread"
+      version = "2.48.0"
+    }
   }
 }
 
 provider "azurerm" {
   features {}
 }
+
+provider "archive" {}
+provider "azureakscommand" {}
+provider "azuread" {}
