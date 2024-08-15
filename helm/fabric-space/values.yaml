@@ -134,7 +134,7 @@ fabric:
   secretsList:
     - name: common-env-secrets
       data:
-        CONFIG_UPDATE_FILE: '/opt/apps/fabric/config-secret/config'
+        CONFIG_UPDATE_FILE: '/opt/apps/fabric/config-secrets/config'
         #COPY_FILES: ''
         #IDP_CERT_PATH: ''
         #IDP_ROLE: ''
