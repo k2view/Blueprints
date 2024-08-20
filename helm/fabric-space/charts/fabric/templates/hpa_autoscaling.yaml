@@ -2,18 +2,18 @@
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
+    name: fabric-hpa
+    namespace: {{ .Values.namespace.name }}
     labels:
         app: fabric
         {{- range $label := .Values.labels }}
         {{ $label.name }}: {{ $label.value }}
         {{- end }}
-    name: fabric-hpa
-    namespace: {{ .Values.namespace.name }}
 spec:
     scaleTargetRef:
         apiVersion: apps/v1
-        kind: Deployment
-        name: fabric-deployment
+        kind: {{ .Values.scaling.targetKind }}
+        name: {{ .Values.scaling.targetName }}
     minReplicas: {{ .Values.scaling.minReplicas }}
     maxReplicas: {{ .Values.scaling.maxReplicas }}
     targetCPUUtilizationPercentage: {{ .Values.scaling.targetCPU }}

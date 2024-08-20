@@ -1,5 +1,16 @@
+global:
+  namespace:
+    create: false
+    name: "space-tenant"
+
+  labels:
+    - name: tenant
+      value: my-tenant
+    - name: space
+      value: my-space
+
 namespace:
-  create: true
+  create: false
   name: "space-tenant"
 
 labels:
@@ -11,7 +22,7 @@ labels:
 container:
   replicas: 1
   image:
-    url: cassandra:3.11.8
+    url: cassandra:4.1.5
 
     repoSecret:
       name: "registry-secret"
@@ -55,3 +66,10 @@ listening_port: 9042
 storage:
   class: gp2
   alocated_amount: 10Gi
+
+affinity:
+  type: none  # Options: affinity, anti-affinity, none
+  label: 
+    name: topology.kubernetes.io/zone
+    value: region-a
+

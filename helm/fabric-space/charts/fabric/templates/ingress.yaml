@@ -10,14 +10,25 @@ metadata:
     {{ $label.name }}: {{ $label.value }}
     {{- end }}
   annotations:
-    {{- range $label := .Values.ingress.annotations }}
+    {{- if and .Values.ingress.custom_annotations.enabled }}
+    {{- range $label := .Values.ingress.custom_annotations.annotations }}
     {{ $label.key }}: {{ $label.value | quote }}
     {{- end }}
+    {{- else if eq .Values.ingress.type "nginx" }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "7d"
+    {{- else if eq .Values.ingress.type "appgw" }}
+    {{- if ne .Values.ingress.appgw_ssl_certificate_name "" }}
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: {{ .Values.ingress.appgw_ssl_certificate_name }}
+    {{- end }}
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
 spec:
+  ingressClassName: {{ .Values.ingress.class_name }}
   tls:
   - hosts:
     - {{ .Values.ingress.host }}
-    {{- if .Values.ingress.tlsSecret.enabled }}
+    {{- if and .Values.ingress.tlsSecret.enabled (ne .Values.ingress.tlsSecret.key "") (ne .Values.ingress.tlsSecret.crt "") }}
     secretName: fabric-private-ingress-ssl
     {{- end }}
   rules:

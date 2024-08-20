@@ -2,12 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cassandra-deployment
+  namespace: {{ .Values.namespace.name }}
   labels: &id001
     app: cassandra
     {{- range $label := .Values.labels }}
     {{ $label.name }}: {{ $label.value }}
     {{- end }}
-  namespace: {{ .Values.namespace.name }}
 spec:
   replicas: {{ .Values.replicas }}
   selector:
@@ -20,6 +20,28 @@ spec:
       {{- if .Values.container.image.repoSecret.enabled }}
       imagePullSecrets:
         -name: {{ .Values.container.image.repoSecret.name }}
+      {{- end }}
+      {{- if or (eq .Values.affinity.type "affinity") (eq .Values.affinity.type "anti-affinity") }}
+      affinity:
+        {{- if eq .Values.affinity.type "affinity" }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ .Values.affinity.label.name }}
+                operator: In
+                values:
+                - {{ .Values.affinity.label.value }}
+        {{- else if eq .Values.affinity.type "anti-affinity" }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ .Values.affinity.label.name }}
+                operator: NotIn
+                values:
+                - {{ .Values.affinity.label.value }}
+        {{- end }}
       {{- end }}
       containers:
       - name: cassandra

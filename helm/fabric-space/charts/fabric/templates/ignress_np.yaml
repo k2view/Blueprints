@@ -1,0 +1,47 @@
+{{ if .Values.networkPolicy.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fabric-monitor-np
+  namespace: {{ .Values.namespace.name }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- range $label := .Values.labels }}
+      {{ $label.name }}: {{ $label.value }}
+      {{- end }}
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            {{- range $key, $value := .Values.networkPolicy.ingress.allowedNamespaces }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
+        podSelector:
+          matchLabels:
+            {{- range $key, $value := .Values.networkPolicy.ingress.allowedPods }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
+      ports:
+        - port: 7070
+        - port: 7170
+        - port: 9100
+    {{- if .Values.networkPolicy.ingress.allowedIPs }}
+    - from:
+      {{- range .Values.networkPolicy.ingress.allowedIPs }}
+      - ipBlock:
+          cidr: {{ . }}
+      {{- end }}
+      ports:
+        - port: 7070
+        - port: 7170
+        - port: 9100
+    {{- end }}
+    - ports:
+        - protocol: TCP
+          port: 3213
+      from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/instance: ingress-nginx
+{{ end }}

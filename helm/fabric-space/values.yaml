@@ -13,8 +13,7 @@ cassandra:
   container:
     replicas: 1
     image:
-      url: cassandra:3.11.8
-
+      url: cassandra:4.1.5
       repoSecret:
         name: "registry-secret"
         enabled: false
@@ -26,7 +25,7 @@ cassandra:
         cpu: '1'
       requests:
         memory: 2Gi
-        cpu: '0.4'
+        cpu: '0.5'
     
     envList:
     - key: HEAP_NEWSIZE
@@ -69,17 +68,23 @@ fabric:
     type: Deployment
 
   serviceAccount:
-    create: false   # For new sa, creation of sa only in k8s side
+    create: true   # For new sa, creation of sa only in k8s side
+    name: ""       # For existing sa, if create is true, name should be an empty string
+    provider: ""   # aws|gcp
+    arn: ""        # For AWS role
+    # gcp_service_account_name: "" # For GCP sa
+    project_id: "" # For GCP SA
+    cluster_name: ""
       
   container:
     replicas: 1
     resource_allocation:
       limits:
-        memory: 4Gi
-        cpu: '1'
+        memory: 8Gi
+        cpu: '2'
       requests:
         memory: 2Gi
-        cpu: '0.4'
+        cpu: '0.5'
     livenessProbe:
       initialDelaySeconds: 300
       periodSeconds: 60
@@ -103,22 +108,23 @@ fabric:
 
   # Deploy network policy that allow to fabric egress only to cassandra pod
   networkPolicy:
-    enabled: false
+    ingress:
+      enabled: false
+    egress:
+      enabled: false
 
   ingress:
+    enabled: true
+    class_name: "nginx"
+    type: "nginx"
     port: 3213
     host: space-tenant.domain
     tlsSecret:
       enabled: false
-    annotations:
-      - key: kubernetes.io/ingress.class
-        value: nginx
-      - key: nginx.ingress.kubernetes.io/proxy-body-size
-        value: "0"
-      - key: nginx.ingress.kubernetes.io/proxy-read-timeout
-        value: "7d"
-      - key: nginx.ingress.kubernetes.io/ssl-redirect
-        value: "false"
+      key_b64: ""
+      crt_b64: ""
+    custom_annotations:
+      enabled: false
 
   # Each key in the data will be mounted as a file under mountPath
   mountSecret:
@@ -126,7 +132,19 @@ fabric:
     enabled: false # true for mount the secret on fabric pod, false for mount only on init container
     mountPath: /opt/apps/fabric/config-secrets
     data:
-      config: 'fabricdb|MDB_DEFAULT_CACHE_PATH|/opt/apps/fabric/pod_tmp/fdb_cache\ndefault_pubsub|TYPE|MEMORY\ncommon_area_pubsub|TYPE|MEMORY\nfabric|OVERRIDE_API_SCHEMA|HTTPS|ADD\nfabric|OVERRIDE_API_PORT|443|ADD'
+      config: |
+        fabricdb|MDB_DEFAULT_CACHE_PATH|/opt/apps/fabric/pod_tmp/fdb_cache
+        default_pubsub|TYPE|MEMORY
+        common_area_pubsub|TYPE|MEMORY
+        fabric|WEB_SESSION_EXPIRATION_TIME_OUT|540
+        fabric|ENABLE_BROADWAY_DEBUG_SERVLET|true
+        default_session|RECONNECT_MAX_DELAY_MS|1000
+        fabric|ENABLE_DB_INTERFACE_PROXY|true
+        fabric|WEBSERVER_FILTERS|[{\"class\":\"com.k2view.cdbms.ws.ProxyForward\",\"patterns\":[\"/studio/*\"],\"params\":{\"target\":\"http://localhost:3000\",\"isStaticTarget\":true}},{\"class\":\"com.k2view.cdbms.ws.ProxyForward\",\"patterns\":[\"/socket.io/*\"],\"params\":{\"target\":\"http://localhost:3000\",\"isStaticTarget\":false}}];
+        fabric|OVERRIDE_API_SCHEMA|HTTPS|ADD
+        fabric|OVERRIDE_API_PORT|443|ADD
+        fabric|MAX_RETRIES_VALIDATE_SYSTEM_DB_CONNECTION|30|ADD
+        fabric|SERVER_AUTHENTICATOR|fabric
       #cp_files: ''
       #idp_cert: ''
 
@@ -138,6 +156,8 @@ fabric:
         #COPY_FILES: ''
         #IDP_CERT_PATH: ''
         #IDP_ROLE: ''
+        #NODE_ID: 'space-tenant'
+        #CLUSTER_ID: 'space-tenant'
         PROJECT_NAME: 'test'
         SPACE_NAME: 'space-tenant'
     - name: cassandra-secrets

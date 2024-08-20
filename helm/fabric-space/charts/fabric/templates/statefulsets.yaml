@@ -37,6 +37,28 @@ spec:
           {{- else if .Values.serviceAccount.create }}
           serviceAccountName: {{ .Values.namespace.name }}-sa
           {{- end }}
+          {{- if or (eq .Values.affinity.type "affinity") (eq .Values.affinity.type "anti-affinity") }}
+          affinity:
+            {{- if eq .Values.affinity.type "affinity" }}
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: {{ .Values.affinity.label.name }}
+                    operator: In
+                    values:
+                    - {{ .Values.affinity.label.value }}
+            {{- else if eq .Values.affinity.type "anti-affinity" }}
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: {{ .Values.affinity.label.name }}
+                    operator: NotIn
+                    values:
+                    - {{ .Values.affinity.label.value }}
+            {{- end }}
+          {{- end }}
           initContainers:
           - command:
             - /bin/bash
@@ -93,6 +115,10 @@ spec:
             - ./docker-entrypoint.sh && tail -F workspace/logs/k2fabric.log
             imagePullPolicy: IfNotPresent
             image: {{ .Values.container.image.url }}
+            lifecycle:
+              preStop:
+                exec:
+                  command: ["/bin/bash", "-l", "-c", "k2fabric stop"]
             name: fabric
             ports:
             - containerPort: 3213
